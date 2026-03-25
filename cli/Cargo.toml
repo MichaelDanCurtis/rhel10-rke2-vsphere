@@ -1,0 +1,13 @@
+[package]
+name = "rhel-image-configurator"
+version = "0.1.0"
+edition = "2021"
+description = "Interactive CLI to configure RHEL 10 bootc + RKE2 images"
+
+[dependencies]
+dialoguer = { version = "0.11", features = ["fuzzy-select"] }
+console = "0.15"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+anyhow = "1"

@@ -1,0 +1,21 @@
+[rhel-10-for-baseos-rpms]
+name = Red Hat Enterprise Linux 10 for $basearch - BaseOS (RPMs)
+baseurl = https://cdn.redhat.com/content/dist/rhel10/$releasever/$basearch/baseos/os
+enabled = 1
+gpgcheck = 1
+gpgkey = file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+sslverify = 1
+sslcacert = /etc/rhsm/ca/redhat-uep.pem
+sslclientkey = /etc/pki/entitlement/entitlement-key.pem
+sslclientcert = /etc/pki/entitlement/entitlement.pem
+
+[rhel-10-for-appstream-rpms]
+name = Red Hat Enterprise Linux 10 for $basearch - AppStream (RPMs)
+baseurl = https://cdn.redhat.com/content/dist/rhel10/$releasever/$basearch/appstream/os
+enabled = 1
+gpgcheck = 1
+gpgkey = file:///etc/pki/rpm-gpg/RPM-GPG-KEY-redhat-release
+sslverify = 1
+sslcacert = /etc/rhsm/ca/redhat-uep.pem
+sslclientkey = /etc/pki/entitlement/entitlement-key.pem
+sslclientcert = /etc/pki/entitlement/entitlement.pem

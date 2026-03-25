@@ -1,0 +1,103 @@
+name: Build RHEL 10 RKE2 Image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'configs/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  IMAGE_NAME: localhost/rhel10-rke2-vsphere
+  IMAGE_TAG: latest
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read build config
+        id: config
+        run: |
+          if [ -f configs/build.json ]; then
+            echo "output_type=$(jq -r '.output_type // "anaconda-iso"' configs/build.json)" >> "$GITHUB_OUTPUT"
+            echo "image_name=$(jq -r '.image_name // "rhel10-rke2-vsphere"' configs/build.json)" >> "$GITHUB_OUTPUT"
+          else
+            echo "output_type=anaconda-iso" >> "$GITHUB_OUTPUT"
+            echo "image_name=rhel10-rke2-vsphere" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Log in to Red Hat registry
+        run: |
+          podman login registry.redhat.io \
+            --username '${{ secrets.REDHAT_USERNAME }}' \
+            --password '${{ secrets.REDHAT_PASSWORD }}'
+
+      - name: Register with subscription-manager
+        run: |
+          sudo subscription-manager register \
+            --org='${{ secrets.RHEL_ORG_ID }}' \
+            --activationkey='${{ secrets.RHEL_ACTIVATION_KEY }}'
+
+      - name: Build bootc container image
+        run: |
+          sudo podman build \
+            --platform linux/amd64 \
+            -v /etc/pki/entitlement:/etc/pki/entitlement:ro \
+            -v /etc/rhsm:/etc/rhsm:ro \
+            -t "${IMAGE_NAME}:${IMAGE_TAG}" \
+            .
+
+      - name: Generate disk image
+        run: |
+          OUTPUT_TYPE="${{ steps.config.outputs.output_type }}"
+          sudo mkdir -p /tmp/output
+
+          sudo podman run \
+            --rm \
+            --privileged \
+            --security-opt label=type:unconfined_t \
+            -v "$(pwd)/config.toml:/config.toml:ro" \
+            -v /tmp/output:/output \
+            -v /var/lib/containers/storage:/var/lib/containers/storage \
+            registry.redhat.io/rhel10/bootc-image-builder:latest \
+            --local \
+            --type "${OUTPUT_TYPE}" \
+            --config /config.toml \
+            "${IMAGE_NAME}:${IMAGE_TAG}"
+
+      - name: Find output artifact
+        id: artifact
+        run: |
+          ARTIFACT=$(sudo find /tmp/output -type f \( -name '*.iso' -o -name '*.vmdk' -o -name '*.qcow2' -o -name '*.raw' -o -name '*.vhd' -o -name '*.tar.gz' \) | head -1)
+          echo "path=${ARTIFACT}" >> "$GITHUB_OUTPUT"
+          echo "name=$(basename "${ARTIFACT}")" >> "$GITHUB_OUTPUT"
+
+      - name: Generate release tag
+        id: tag
+        run: |
+          TAG="build-$(date -u +%Y%m%d-%H%M%S)"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: "RHEL 10 RKE2 Image — ${{ steps.tag.outputs.tag }}"
+          body: |
+            Automated build from config push.
+            - Output type: `${{ steps.config.outputs.output_type }}`
+            - Image: `${{ steps.config.outputs.image_name }}`
+          files: ${{ steps.artifact.outputs.path }}
+          make_latest: true
+
+      - name: Cleanup subscription
+        if: always()
+        run: |
+          sudo subscription-manager unregister || true

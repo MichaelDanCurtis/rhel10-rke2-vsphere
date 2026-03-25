@@ -1,0 +1,23 @@
+# /etc/rancher/rke2/config.yaml
+# RKE2 Server Configuration
+# Docs: https://docs.rke2.io/reference/server_config
+
+# IPv4-only networking (IPv6 is disabled at kernel level)
+node-ip: "0.0.0.0"
+cluster-cidr: "10.42.0.0/16"
+service-cidr: "10.43.0.0/16"
+
+# Make kubeconfig readable
+write-kubeconfig-mode: "0644"
+
+# CNI plugin
+cni:
+  - canal
+
+# Optional: set a token for joining agent nodes
+# token: "my-shared-secret"
+
+# Optional: TLS SAN entries for the API server cert
+# tls-san:
+#   - "k8s.example.com"
+#   - "192.168.1.100"
